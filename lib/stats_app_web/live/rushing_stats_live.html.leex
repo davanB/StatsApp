@@ -1,0 +1,29 @@
+<%= f = form_for @changeset, "#", [as: :filters, phx_change: :validate, phx_submit: :filter] %>
+  <%= label f, "Filter by player name" %>
+  <%= text_input f, :player %>
+  <%= error_tag f, :player %>
+
+  <%= submit "Filter" %> <%= content_tag :button, "Reset Filters", type: :button, phx_click: :reset_filter %>
+</form>
+
+<%= content_tag :button, "Download Stats", type: :button, phx_click: :download_stats %>
+
+<table>
+  <thead>
+    <tr>
+      <%= for col <- @cols do %>
+        <%= render_col(col, assigns) %>
+      <% end %>
+    </tr>
+  </thead>
+
+  <tbody>
+    <%= for row <- @rows do %>
+      <tr>
+        <%= for stat <- row do %>
+          <td><%= stat %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
