@@ -8,6 +8,12 @@ defmodule StatsAppWeb.RushingStatsLive do
 
   @sortable_fields ~w(Yds Lng TD)
 
+  @order_states %{
+    none: :desc,
+    desc: :asc,
+    asc: :none
+  }
+
   @impl true
   def mount(_params, _session, socket) do
     rows = if connected?(socket) do
@@ -22,7 +28,12 @@ defmodule StatsAppWeb.RushingStatsLive do
     assigns = [
       cols: cols,
       changeset: changeset,
-      rows: rows
+      rows: rows,
+      player_filter: "",
+      order_by: %{
+        col: "",
+        direction: :none
+      }
     ]
 
     {:ok, assign(socket, assigns)}
@@ -31,7 +42,7 @@ defmodule StatsAppWeb.RushingStatsLive do
   def render_col(col, assigns) when col in @sortable_fields do
     ~L"""
     <th>
-      <%= live_patch col, to: Routes.rushing_stats_path(@socket, __MODULE__, %{sort_by: col}) %><%= render_arrow(:down) %>
+      <%= live_patch col, to: Routes.rushing_stats_path(@socket, __MODULE__, %{sort_by: col}), replace: true %><%= maybe_render_arrow(col, assigns) %>
     </th>
     """
   end
@@ -42,47 +53,43 @@ defmodule StatsAppWeb.RushingStatsLive do
     """
   end
 
+  def maybe_render_arrow(curr_col, %{order_by: %{col: col, direction: direction}}) when curr_col == col , do: render_arrow(direction)
+  def maybe_render_arrow(_curr_col, _assigns), do: render_arrow(:none)
+
   def render_arrow(:down), do: "▼"
   def render_arrow(:up), do: "▲"
+  def render_arrow(:none), do: ""
 
   @impl true
-  def handle_params(params, _uri, socket) do
-    IO.inspect(params)
-    socket =
-      case params["sort_by"] do
-        sort_by when sort_by in @sortable_fields ->
-          order_by = get_order_by(sort_by) |> IO.inspect()
-          rows = get_records_for_view(%{order_by: order_by})
-          assign(socket, rows: rows)
+  def handle_params(%{"sort_by" => sort_by}, _uri, socket) when sort_by in @sortable_fields do
+    order_by = get_order_by(sort_by)
+    rows = get_records_for_view(%{order_by: order_by})
 
-        _ ->
-          socket
-      end
+    {:noreply, assign(socket, rows: rows)}
+  end
 
+  def handle_params(params, _uri, socket) when params == %{} do
+    rows = get_records_for_view()
+
+    assigns = [
+      rows: rows,
+      player_filter: "",
+      order_by: %{
+        col: "",
+        direction: :none
+      }
+    ]
+
+    {:noreply, assign(socket, assigns)}
+  end
+
+  def handle_params(_params, _uri, socket) do
     {:noreply, socket}
   end
 
   defp get_order_by("Yds"), do: [desc: :yds]
   defp get_order_by("Lng"), do: [desc: :lng]
   defp get_order_by("TD"), do: [desc: :td]
-
-  def handle_event("filter_yds", _params, socket) do
-    rows = get_records_for_view(%{order_by: [desc: :yds]})
-
-    {:noreply, assign(socket, rows: rows)}
-  end
-
-  def handle_event("filter_lng", _params, socket) do
-    rows = get_records_for_view(%{order_by: [desc: :lng]})
-
-    {:noreply, assign(socket, rows: rows)}
-  end
-
-  def handle_event("filter_td", _params, socket) do
-    rows = get_records_for_view(%{order_by: [desc: :td]})
-
-    {:noreply, assign(socket, rows: rows)}
-  end
 
   @impl true
   def handle_event("validate", %{"filters" => %{"player" => player_filter}}, socket) do
@@ -97,21 +104,20 @@ defmodule StatsAppWeb.RushingStatsLive do
   def handle_event("filter", %{"filters" => %{"player" => player_filter}}, socket) do
     rows = get_records_for_view(%{player: player_filter})
 
-    {:noreply, assign(socket, rows: rows)}
+    {:noreply, assign(socket, rows: rows, player_filter: player_filter)}
   end
 
   def handle_event("reset_filter", _params, socket) do
-    rows = get_records_for_view()
-
-    changeset = Form.new()
-
-    {:noreply, assign(socket, rows: rows, changeset: changeset)}
+    {:noreply, push_patch(socket, to: Routes.rushing_stats_path(socket, __MODULE__))}
   end
 
   def handle_event("download_stats", _params, socket) do
-    Downloader.download_records_async(socket, %{})
+    assigns = socket.assigns
+    params = %{
+      player: assigns.player_filter
+    }
 
-    {:noreply, socket}
+    {:noreply, redirect(socket, to: Routes.rushing_stats_path(socket, :export_stats, params))}
   end
 
   defp get_records_for_view(filters \\ %{}) do

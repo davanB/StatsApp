@@ -3,6 +3,8 @@ defmodule StatsApp.Downloader do
   alias StatsApp.Writer
   alias StatsAppWeb.RushingStatsView
 
+  @supervisor StatsApp.DownloadSupervisor
+
   def get_records_to_download(filters) do
     records =
       filters
@@ -13,7 +15,7 @@ defmodule StatsApp.Downloader do
   end
 
   def download_records_async(socket, filters) do
-    Task.start(__MODULE__, :download_records, [socket, filters])
+    Task.Supervisor.async_nolink(@supervisor, __MODULE__, :download_records, [socket, filters])
   end
 
   def download_records(conn, filters) do
@@ -21,10 +23,10 @@ defmodule StatsApp.Downloader do
 
     records = get_records_to_download(filters)
 
-    {:ok, fd, file} = Temp.open("records.csv")
+    {:ok, fd, file} = Temp.open()
 
     Writer.dump_to_file(file, records)
-    conn = Phoenix.Controller.send_download(conn, {:file, file})
+    conn = Phoenix.Controller.send_download(conn, {:file, file}, filename: "records.csv")
 
     File.close(fd)
     Temp.cleanup()

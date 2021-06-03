@@ -14,7 +14,8 @@ defmodule StatsApp.Application do
       # Start the PubSub system
       {Phoenix.PubSub, name: StatsApp.PubSub},
       # Start the Endpoint (http/https)
-      StatsAppWeb.Endpoint
+      StatsAppWeb.Endpoint,
+      {Task.Supervisor, name: StatsApp.DownloadSupervisor}
       # Start a worker by calling: StatsApp.Worker.start_link(arg)
       # {StatsApp.Worker, arg}
     ]
