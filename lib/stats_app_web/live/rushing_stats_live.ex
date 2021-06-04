@@ -4,23 +4,29 @@ defmodule StatsAppWeb.RushingStatsLive do
   alias StatsApp.RushingStatsRecords
   alias StatsAppWeb.RushingStatsView
   alias StatsAppWeb.RushingStats.Form
-  alias StatsApp.Downloader
 
   @sortable_fields ~w(Yds Lng TD)
 
   @order_states %{
     none: :desc,
     desc: :asc,
-    asc: :none
+    asc: :desc
+  }
+
+  @sortable_col_index %{
+    "Yds" => 5,
+    "TD" => 8,
+    "Lng" => 9
   }
 
   @impl true
   def mount(_params, _session, socket) do
-    rows = if connected?(socket) do
-      get_records_for_view()
-    else
-      []
-    end
+    rows =
+      if connected?(socket) do
+        get_records_for_view()
+      else
+        []
+      end
 
     changeset = Form.new()
     cols = RushingStatsView.headers()
@@ -53,19 +59,34 @@ defmodule StatsAppWeb.RushingStatsLive do
     """
   end
 
-  def maybe_render_arrow(curr_col, %{order_by: %{col: col, direction: direction}}) when curr_col == col , do: render_arrow(direction)
+  def maybe_render_arrow(curr_col, %{order_by: %{col: col, direction: direction}})
+      when curr_col == col,
+      do: render_arrow(direction)
+
   def maybe_render_arrow(_curr_col, _assigns), do: render_arrow(:none)
 
-  def render_arrow(:down), do: "▼"
-  def render_arrow(:up), do: "▲"
+  def render_arrow(:desc), do: "▼"
+  def render_arrow(:asc), do: "▲"
   def render_arrow(:none), do: ""
+
+  def handle_params(%{"player_filter" => filter}, _uri, socket) do
+    rows = Enum.filter(socket.assigns.rows, fn row ->
+      player = Enum.at(row, 0)
+      String.starts_with?(player, filter)
+    end)
+
+    {:noreply, assign(socket, rows: rows, player_filter: filter)}
+  end
 
   @impl true
   def handle_params(%{"sort_by" => sort_by}, _uri, socket) when sort_by in @sortable_fields do
-    order_by = get_order_by(sort_by)
-    rows = get_records_for_view(%{order_by: order_by})
+    assigns = socket.assigns
+    order_by_state = assigns.order_by
+    new_order_by_state = update_order_by_state(sort_by, order_by_state)
 
-    {:noreply, assign(socket, rows: rows)}
+    rows = sort_rows_by_col(assigns.rows, new_order_by_state)
+
+    {:noreply, assign(socket, rows: rows, order_by: new_order_by_state)}
   end
 
   def handle_params(params, _uri, socket) when params == %{} do
@@ -91,6 +112,32 @@ defmodule StatsAppWeb.RushingStatsLive do
   defp get_order_by("Lng"), do: [desc: :lng]
   defp get_order_by("TD"), do: [desc: :td]
 
+  defp update_order_by_state(sort_by, %{col: col, direction: old_direction})
+       when sort_by == col do
+    %{
+      col: col,
+      direction: Map.get(@order_states, old_direction)
+    }
+  end
+
+  defp update_order_by_state(sort_by, _old_state) do
+    %{
+      col: sort_by,
+      direction: :desc
+    }
+  end
+
+  defp sort_rows_by_col(rows, %{col: col, direction: direction}) when direction != :none do
+    Enum.sort_by(rows, &(get_col_from_row(&1, col)), direction)
+  end
+
+  defp sort_rows_by_col(rows, _), do: rows
+
+  defp get_col_from_row(row, col) do
+    index = Map.get(@sortable_col_index, col)
+    Enum.at(row, index)
+  end
+
   @impl true
   def handle_event("validate", %{"filters" => %{"player" => player_filter}}, socket) do
     cs =
@@ -102,9 +149,9 @@ defmodule StatsAppWeb.RushingStatsLive do
   end
 
   def handle_event("filter", %{"filters" => %{"player" => player_filter}}, socket) do
-    rows = get_records_for_view(%{player: player_filter})
+    params = %{player_filter: player_filter}
 
-    {:noreply, assign(socket, rows: rows, player_filter: player_filter)}
+    {:noreply, push_patch(socket, to: Routes.rushing_stats_path(socket, __MODULE__, params))}
   end
 
   def handle_event("reset_filter", _params, socket) do
@@ -113,8 +160,11 @@ defmodule StatsAppWeb.RushingStatsLive do
 
   def handle_event("download_stats", _params, socket) do
     assigns = socket.assigns
+    %{col: col, direction: direction} = assigns.order_by
+
     params = %{
-      player: assigns.player_filter
+      player_filter: assigns.player_filter,
+      order_by: %{col => direction}
     }
 
     {:noreply, redirect(socket, to: Routes.rushing_stats_path(socket, :export_stats, params))}

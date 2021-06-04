@@ -4,7 +4,11 @@ defmodule StatsAppWeb.RushingStatsController do
   alias StatsApp.Downloader
 
   def export_stats(conn, params) do
-    params = parse_params(params)
+    params =
+      params
+      |> Map.take(["player_filter", "order_by"])
+      |> parse_params()
+
     task = Downloader.download_records_async(conn, params)
 
     case Task.yield(task) || Task.shutdown(task) do
@@ -18,7 +22,14 @@ defmodule StatsAppWeb.RushingStatsController do
 
   defp parse_params(params) do
     player = Map.get(params, "player")
-    order_by = Map.get(params, "order_by")
+    order_by =
+      params
+      |> Map.get("order_by")
+      |> Enum.map(fn {order, col} ->
+        col = String.downcase(col)
+        {String.to_existing_atom(order), String.to_existing_atom(col)}
+      end)
+      |> Keyword.new()
 
     %{}
     |> maybe_add_key(:player, player)

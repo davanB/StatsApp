@@ -9,6 +9,7 @@ defmodule StatsApp.DownloaderTest do
     rows = Downloader.get_records_to_download(%{})
     assert length(rows) == 2
     assert hd(rows) == StatsAppWeb.RushingStatsView.headers()
+
     td =
       rows
       |> tl()

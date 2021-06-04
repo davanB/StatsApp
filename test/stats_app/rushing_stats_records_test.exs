@@ -30,7 +30,9 @@ defmodule StatsApp.RushingStatsRecordsTest do
     TestUtils.create_test_record(%{player: "Tony Soprano", yds: 10})
     TestUtils.create_test_record(%{player: "Tony Jr Soprano", yds: 20})
 
-    records = RushingStatsRecords.get_rushing_stat_records(%{player: "Tony", order_by: [desc: :yds]})
+    records =
+      RushingStatsRecords.get_rushing_stat_records(%{player: "Tony", order_by: [desc: :yds]})
+
     assert length(records) == 2
     [record_1, record_2] = records
 
@@ -44,7 +46,9 @@ defmodule StatsApp.RushingStatsRecordsTest do
     TestUtils.create_test_record(%{player: "Tony Soprano", lng: 10})
     TestUtils.create_test_record(%{player: "Tony Jr Soprano", lng: 20})
 
-    records = RushingStatsRecords.get_rushing_stat_records(%{player: "Tony", order_by: [desc: :lng]})
+    records =
+      RushingStatsRecords.get_rushing_stat_records(%{player: "Tony", order_by: [desc: :lng]})
+
     assert length(records) == 2
     [record_1, record_2] = records
 
@@ -56,7 +60,9 @@ defmodule StatsApp.RushingStatsRecordsTest do
     TestUtils.create_test_record(%{player: "Tony Soprano", td: 10})
     TestUtils.create_test_record(%{player: "Tony Jr Soprano", td: 20})
 
-    records = RushingStatsRecords.get_rushing_stat_records(%{player: "Tony", order_by: [desc: :td]})
+    records =
+      RushingStatsRecords.get_rushing_stat_records(%{player: "Tony", order_by: [desc: :td]})
+
     assert length(records) == 2
     [record_1, record_2] = records
 
@@ -69,7 +75,12 @@ defmodule StatsApp.RushingStatsRecordsTest do
     TestUtils.create_test_record(%{player: "Tony Jr Soprano", yds: 10, lng: 10, td: 20})
     TestUtils.create_test_record(%{player: "Tony Sr Soprano", yds: 10, lng: 20, td: 30})
 
-    records = RushingStatsRecords.get_rushing_stat_records(%{player: "Tony", order_by: [desc: :yds, desc: :lng, desc: :td]})
+    records =
+      RushingStatsRecords.get_rushing_stat_records(%{
+        player: "Tony",
+        order_by: [desc: :yds, desc: :lng, desc: :td]
+      })
+
     assert length(records) == 3
     [record_1, record_2, record_3] = records
 
