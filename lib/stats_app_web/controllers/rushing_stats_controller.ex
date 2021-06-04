@@ -9,12 +9,22 @@ defmodule StatsAppWeb.RushingStatsController do
       |> Map.take(["player_filter", "order_by"])
       |> parse_params()
 
-    Downloader.download_records_async(conn, parsed_params)
+    task = Downloader.download_records_async(conn, parsed_params)
+
+    # Using a async_no_link because I think I need to use
+    # low level Plug functions to send the file so that a resp is
+    # not sent and I can redirect after, setting up for later
+    case Task.yield(task) || Task.shutdown(task) do
+      {:ok, done_conn} ->
+        done_conn
+
+      nil ->
+        conn
+    end
   end
 
   defp parse_params(params) do
     player = Map.get(params, "player_filter")
-
     order_by =
       params
       |> Map.get("order_by")
