@@ -15,7 +15,7 @@ defmodule StatsApp.Downloader do
   end
 
   def download_records_async(socket, filters) do
-    Task.Supervisor.async_nolink(@supervisor, __MODULE__, :download_records, [socket, filters])
+    Task.Supervisor.start_child(@supervisor, __MODULE__, :download_records, [socket, filters])
   end
 
   def download_records(conn, filters) do

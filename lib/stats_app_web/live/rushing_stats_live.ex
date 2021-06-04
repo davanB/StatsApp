@@ -13,12 +13,6 @@ defmodule StatsAppWeb.RushingStatsLive do
     asc: :desc
   }
 
-  @sortable_col_index %{
-    "Yds" => 5,
-    "TD" => 8,
-    "Lng" => 9
-  }
-
   @impl true
   def mount(_params, _session, socket) do
     rows =
@@ -48,7 +42,7 @@ defmodule StatsAppWeb.RushingStatsLive do
   def render_col(col, assigns) when col in @sortable_fields do
     ~L"""
     <th>
-      <%= live_patch col, to: Routes.rushing_stats_path(@socket, __MODULE__, %{sort_by: col}), replace: true %><%= maybe_render_arrow(col, assigns) %>
+      <%= live_patch col, to: Routes.rushing_stats_path(@socket, __MODULE__, %{order_by: col}), replace: true %><%= maybe_render_arrow(col, assigns) %>
     </th>
     """
   end
@@ -70,21 +64,20 @@ defmodule StatsAppWeb.RushingStatsLive do
   def render_arrow(:none), do: ""
 
   def handle_params(%{"player_filter" => filter}, _uri, socket) do
-    rows = Enum.filter(socket.assigns.rows, fn row ->
-      player = Enum.at(row, 0)
-      String.starts_with?(player, filter)
-    end)
+    order_by = get_order_by(socket.assigns.order_by)
+    rows = get_records_for_view(%{player: filter, order_by: order_by})
 
     {:noreply, assign(socket, rows: rows, player_filter: filter)}
   end
 
   @impl true
-  def handle_params(%{"sort_by" => sort_by}, _uri, socket) when sort_by in @sortable_fields do
+  def handle_params(%{"order_by" => order_by}, _uri, socket) when order_by in @sortable_fields do
     assigns = socket.assigns
     order_by_state = assigns.order_by
-    new_order_by_state = update_order_by_state(sort_by, order_by_state)
+    new_order_by_state = update_order_by_state(order_by, order_by_state)
+    order_by = get_order_by(new_order_by_state)
 
-    rows = sort_rows_by_col(assigns.rows, new_order_by_state)
+    rows = get_records_for_view(%{player: assigns.player_filter, order_by: order_by})
 
     {:noreply, assign(socket, rows: rows, order_by: new_order_by_state)}
   end
@@ -108,34 +101,30 @@ defmodule StatsAppWeb.RushingStatsLive do
     {:noreply, socket}
   end
 
-  defp get_order_by("Yds"), do: [desc: :yds]
-  defp get_order_by("Lng"), do: [desc: :lng]
-  defp get_order_by("TD"), do: [desc: :td]
+  defp get_order_by(%{col: col, direction: direction}) when direction != :none do
+    col =
+      col
+      |> String.downcase()
+      |> String.to_existing_atom()
 
-  defp update_order_by_state(sort_by, %{col: col, direction: old_direction})
-       when sort_by == col do
+    Keyword.new([{direction, col}])
+  end
+
+  defp get_order_by(_order_by), do: []
+
+  defp update_order_by_state(order_by, %{col: col, direction: old_direction})
+       when order_by == col do
     %{
       col: col,
       direction: Map.get(@order_states, old_direction)
     }
   end
 
-  defp update_order_by_state(sort_by, _old_state) do
+  defp update_order_by_state(order_by, _old_state) do
     %{
-      col: sort_by,
+      col: order_by,
       direction: :desc
     }
-  end
-
-  defp sort_rows_by_col(rows, %{col: col, direction: direction}) when direction != :none do
-    Enum.sort_by(rows, &(get_col_from_row(&1, col)), direction)
-  end
-
-  defp sort_rows_by_col(rows, _), do: rows
-
-  defp get_col_from_row(row, col) do
-    index = Map.get(@sortable_col_index, col)
-    Enum.at(row, index)
   end
 
   @impl true
