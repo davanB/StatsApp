@@ -24,3 +24,4 @@ From docker image:
 - There are no unit tests for the live view. I know there are functions to send events to the live view to test for side effects but all the functionality is ordering by stats so checking for side effects will mean parsing the HTML and making sure the records are in the right order. Not impossible but time consuming but brittle. If the HTML changes, it will break the tests.
 - Ordering by multiple stats at the same time. This is difficult since we have to maintain a queue of what the users selects to order by. The order that the user selects the columns is important.
 - Publish the docker image to docker hub to share.
+- Pagination to make it easier to read and more performant to sort by.
