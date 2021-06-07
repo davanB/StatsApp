@@ -29,9 +29,17 @@ defmodule StatsApp.RushingStatsRecords do
     query
   end
 
+  @doc """
+  Insert a record.
+  We assume player, team and pos will be unique although there may be a case where it is not.
+  Also keeping track of player number would make it unique but we assume this is good enough.
+  """
   def insert_rushing_stat_record(record) do
     %RushingStatsRecord{}
     |> RushingStatsRecord.changeset(record)
-    |> Repo.insert()
+    |> Repo.insert(
+      on_conflict: :nothing,
+      conflict_target: [:player, :team, :pos]
+    )
   end
 end

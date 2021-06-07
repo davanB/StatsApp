@@ -25,6 +25,7 @@ defmodule StatsAppWeb.RushingStatsController do
 
   defp parse_params(params) do
     player = Map.get(params, "player_filter")
+
     order_by =
       params
       |> Map.get("order_by")

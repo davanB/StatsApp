@@ -1,7 +1,7 @@
 defmodule StatsApp.RushingStatsRecordsTest do
   use StatsApp.DataCase
 
-  alias StatsApp.{RushingStatsRecords, RushingStatsRecord}
+  alias StatsApp.RushingStatsRecords
 
   test "can get all records" do
     assert RushingStatsRecords.get_rushing_stat_records() |> length() == 0

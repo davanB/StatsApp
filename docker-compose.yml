@@ -1,6 +1,6 @@
 version: "3.4"
 services:
-  phoenix:
+  stats_app:
     build:
       context: .
     env_file:

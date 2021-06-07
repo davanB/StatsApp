@@ -13,6 +13,12 @@ defmodule StatsAppWeb.RushingStatsLive do
     asc: :desc
   }
 
+  @sortable_col_index %{
+    "Yds" => 5,
+    "TD" => 8,
+    "Lng" => 9
+  }
+
   @impl true
   def mount(_params, _session, socket) do
     rows =
@@ -75,9 +81,8 @@ defmodule StatsAppWeb.RushingStatsLive do
     assigns = socket.assigns
     order_by_state = assigns.order_by
     new_order_by_state = update_order_by_state(order_by, order_by_state)
-    order_by = get_order_by(new_order_by_state)
 
-    rows = get_records_for_view(%{player: assigns.player_filter, order_by: order_by})
+    rows = sort_rows_by_col(assigns.rows, new_order_by_state)
 
     {:noreply, assign(socket, rows: rows, order_by: new_order_by_state)}
   end
@@ -99,32 +104,6 @@ defmodule StatsAppWeb.RushingStatsLive do
 
   def handle_params(_params, _uri, socket) do
     {:noreply, socket}
-  end
-
-  defp get_order_by(%{col: col, direction: direction}) when direction != :none do
-    col =
-      col
-      |> String.downcase()
-      |> String.to_existing_atom()
-
-    Keyword.new([{direction, col}])
-  end
-
-  defp get_order_by(_order_by), do: []
-
-  defp update_order_by_state(order_by, %{col: col, direction: old_direction})
-       when order_by == col do
-    %{
-      col: col,
-      direction: Map.get(@order_states, old_direction)
-    }
-  end
-
-  defp update_order_by_state(order_by, _old_state) do
-    %{
-      col: order_by,
-      direction: :desc
-    }
   end
 
   @impl true
@@ -158,6 +137,65 @@ defmodule StatsAppWeb.RushingStatsLive do
 
     {:noreply, redirect(socket, to: Routes.rushing_stats_path(socket, :export_stats, params))}
   end
+
+  defp get_order_by(%{col: col, direction: direction}) when direction != :none do
+    col =
+      col
+      |> String.downcase()
+      |> String.to_existing_atom()
+
+    Keyword.new([{direction, col}])
+  end
+
+  defp get_order_by(_order_by), do: []
+
+  defp update_order_by_state(order_by, %{col: col, direction: old_direction})
+       when order_by == col do
+    %{
+      col: col,
+      direction: Map.get(@order_states, old_direction)
+    }
+  end
+
+  defp update_order_by_state(order_by, _old_state) do
+    %{
+      col: order_by,
+      direction: :desc
+    }
+  end
+
+  defp sort_rows_by_col(rows, %{col: "Lng" = col, direction: direction})
+       when direction != :none do
+    Enum.sort_by(
+      rows,
+      fn row ->
+        row
+        |> get_col_from_row(col)
+        |> try_parse_int()
+      end,
+      direction
+    )
+  end
+
+  defp sort_rows_by_col(rows, %{col: col, direction: direction})
+       when direction != :none and col != "Lng" do
+    Enum.sort_by(rows, &get_col_from_row(&1, col), direction)
+  end
+
+  defp sort_rows_by_col(rows, _), do: rows
+
+  defp get_col_from_row(row, col) do
+    index = Map.get(@sortable_col_index, col)
+    Enum.at(row, index)
+  end
+
+  defp try_parse_int(lng) when is_binary(lng) do
+    lng
+    |> Integer.parse()
+    |> elem(0)
+  end
+
+  defp try_parse_int(lng), do: lng
 
   defp get_records_for_view(filters \\ %{}) do
     RushingStatsRecords.get_rushing_stat_records(filters)
