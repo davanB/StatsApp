@@ -7,6 +7,7 @@ To start from source code:
   * Create and migrate your database with `mix ecto.setup`
   * Install Node.js dependencies with `npm install` inside the `assets` directory
   * Start Phoenix endpoint with `mix phx.server`
+  * go to `localhost:4000/rushingStats`
 
 From docker image:
 
